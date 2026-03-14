@@ -21,7 +21,7 @@ def run_server():
     app.run(host="0.0.0.0", port=port)
 
 # ==================== SOZLAMALAR ====================
-BOT_TOKEN = "7963263075:AAFy0uOwjihtt2YOSy0bZmjXu5CpdVTtfRQ"
+BOT_TOKEN = "8420793576:AAF9YeAgqUR8sEhrw7oIeUIOaWxwlauMpCA"
 ADMIN_IDS = [7384088509, 5846262545]
 ADMIN_PASSWORD = "2026"
 DAILY_PRICE = 25000  # so'm
