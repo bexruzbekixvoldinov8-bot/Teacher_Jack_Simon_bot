@@ -22,7 +22,7 @@ def run_server():
 
 # ==================== SOZLAMALAR ====================
 BOT_TOKEN = "7963263075:AAFy0uOwjihtt2YOSy0bZmjXu5CpdVTtfRQ"
-ADMIN_IDS = [7384088509, 533170952]
+ADMIN_IDS = [7384088509, 5846262545]
 ADMIN_PASSWORD = "2026"
 DAILY_PRICE = 25000  # so'm
 
