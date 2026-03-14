@@ -21,8 +21,8 @@ def run_server():
     app.run(host="0.0.0.0", port=port)
 
 # ==================== SOZLAMALAR ====================
-BOT_TOKEN = "8420793576:AAF9YeAgqUR8sEhrw7oIeUIOaWxwlauMpCA"
-ADMIN_IDS = [6120632807, 5846262545]
+BOT_TOKEN = "7963263075:AAFy0uOwjihtt2YOSy0bZmjXu5CpdVTtfRQ"
+ADMIN_IDS = [7384088509, 533170952]
 ADMIN_PASSWORD = "2026"
 DAILY_PRICE = 25000  # so'm
 
@@ -160,8 +160,8 @@ def main_menu(user_id):
     if is_admin(user_id):
         markup.add("👨‍🏫 O'qituvchilar", "👨‍🎓 O'quvchilar ro'yxati")
         markup.add("📊 Statistika", "📝 Yangi Test qo'shish")
-        markup.add("📥 Kelgan Uy vazifalari", "💰 To'lovlar")
-        markup.add("📣 Hammaga xabar yuborish")
+        markup.add("📥 Kelgan Uy vazifalari", "📋 Uy vazifa berish")
+        markup.add("💰 To'lovlar", "📣 Hammaga xabar yuborish")
     else:
         markup.add("📝 Test yechish", "📊 Natijalarim")
         markup.add("✅ Keldim", "📚 Uy vazifa topshirish")
@@ -202,6 +202,9 @@ def reg_get_name(message):
     if len(name) < 3:
         bot.send_message(message.chat.id, "⚠️ Iltimos, to'liq ism familiyangizni kiriting.")
         return
+    if any(ch.isdigit() for ch in name):
+        bot.send_message(message.chat.id, "⚠️ Ism familiyada raqam bo'lmasligi kerak! Qaytadan kiriting:")
+        return
     user_data[message.from_user.id] = {"name": name}
     user_states[message.from_user.id] = "waiting_level"
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -237,13 +240,28 @@ def reg_get_contact(message):
     user_id = message.from_user.id
     if user_states.get(user_id) != "waiting_phone":
         return
+    save_user_with_phone(message, message.contact.phone_number)
+
+@bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "waiting_phone")
+def reg_get_phone_text(message):
+    user_id = message.from_user.id
+    phone = message.text.strip().replace(" ", "").replace("-", "")
+    # Oddiy raqam tekshirish: +998XXXXXXXXX yoki 998XXXXXXXXX yoki 0XXXXXXXXX
+    digits = phone.replace("+", "")
+    if not digits.isdigit() or len(digits) < 9:
+        bot.send_message(message.chat.id, "⚠️ Noto'g'ri raqam! Iltimos qaytadan kiriting (masalan: +998901234567):")
+        return
+    save_user_with_phone(message, phone)
+
+def save_user_with_phone(message, phone):
+    user_id = message.from_user.id
     db = load_db()
     data = user_data.get(user_id, {})
     role = "admin" if user_id in ADMIN_IDS else "student"
     db["users"][str(user_id)] = {
         "name": data["name"],
         "level": data["level"],
-        "phone": message.contact.phone_number,
+        "phone": phone,
         "telegram_id": user_id,
         "role": role
     }
@@ -460,6 +478,24 @@ def student_select_test(message):
     if not test:
         bot.send_message(message.chat.id, "⚠️ Test topilmadi, qaytadan tanlang.")
         return
+    # Bugun bu testni topshirganmi tekshirish
+    uid = str(user_id)
+    today = str(date.today())
+    already_done = any(
+        r["test_title"] == test["title"] and r.get("date") == today
+        for r in db.get("results", {}).get(uid, [])
+    )
+    if already_done:
+        name = get_name(user_id)
+        bot.send_message(
+            message.chat.id,
+            f"⚠️ *{name}*, siz bugun *{test['title']}* testini allaqachon topshirgansiz!\n\n"
+            f"Ertaga qaytadan urinib ko'ring. 📅",
+            parse_mode="Markdown",
+            reply_markup=main_menu(user_id)
+        )
+        user_states.pop(user_id, None)
+        return
     user_states[user_id] = "taking_test"
     test_states[user_id] = {"test": test, "current_q": 0, "score": 0}
     show_test_question(user_id)
@@ -565,10 +601,23 @@ def student_attendance(message):
 def student_homework_start(message):
     user_id = message.from_user.id
     name = get_name(user_id)
+    db = load_db()
+    today = str(date.today())
+    # Admin bugun uy vazifa berganlini tekshirish
+    assigned = db.get("homework_assigned", {})
+    if today not in assigned.get("dates", []):
+        bot.send_message(
+            message.chat.id,
+            f"📭 *{name}*, bugun uchun uy vazifasi berilmagan.\n\nAdmin uy vazifa bergandan so'ng topshira olasiz.",
+            parse_mode="Markdown",
+            reply_markup=main_menu(user_id)
+        )
+        return
     user_states[user_id] = "waiting_homework"
     bot.send_message(
         message.chat.id,
-        f"📚 *{name}*, uy vazifangizni yozing:",
+        f"📚 *{name}*, uy vazifangizni yozing:\n\n"
+        f"📋 *Vazifa:* {assigned.get('task', 'Topshiriq')}",
         parse_mode="Markdown",
         reply_markup=types.ReplyKeyboardRemove()
     )
@@ -1002,6 +1051,40 @@ def admin_payments(message):
     text += f"⏳ Jami kutilmoqda: *{total_pending:,}* so'm"
 
     bot.send_message(message.chat.id, text, parse_mode="Markdown", reply_markup=main_menu(message.from_user.id))
+
+# ==================== ADMIN: UY VAZIFA BERISH ====================
+@bot.message_handler(func=lambda m: m.text == "📋 Uy vazifa berish")
+def admin_assign_homework(message):
+    if not is_admin(message.from_user.id):
+        return
+    user_states[message.from_user.id] = "admin_assign_hw"
+    bot.send_message(
+        message.chat.id,
+        "📋 *Bugungi uy vazifasini kiriting:*\n\n(O'quvchilar shu matnni ko'rib topshiradi)",
+        parse_mode="Markdown",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+
+@bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "admin_assign_hw")
+def admin_assign_hw_save(message):
+    admin_id = message.from_user.id
+    if not is_admin(admin_id):
+        return
+    user_states.pop(admin_id, None)
+    db = load_db()
+    today = str(date.today())
+    if "homework_assigned" not in db:
+        db["homework_assigned"] = {"dates": [], "task": ""}
+    if today not in db["homework_assigned"]["dates"]:
+        db["homework_assigned"]["dates"].append(today)
+    db["homework_assigned"]["task"] = message.text
+    save_db(db)
+    bot.send_message(
+        message.chat.id,
+        f"✅ Bugungi uy vazifasi saqlandi!\n\n📋 *Vazifa:* {message.text}\n\nO'quvchilar endi topshira oladi.",
+        parse_mode="Markdown",
+        reply_markup=main_menu(admin_id)
+    )
 
 # ==================== ADMIN: HAMMAGA XABAR ====================
 @bot.message_handler(func=lambda m: m.text == "📣 Hammaga xabar yuborish")
