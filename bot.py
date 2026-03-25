@@ -21,10 +21,10 @@ def run_server():
     app.run(host="0.0.0.0", port=port)
 
 # ==================== SOZLAMALAR ====================
-BOT_TOKEN = "7963263075:AAFy0uOwjihtt2YOSy0bZmjXu5CpdVTtfRQ"
+BOT_TOKEN = "8420793576:AAF9YeAgqUR8sEhrw7oIeUIOaWxwlauMpCA"
 ADMIN_IDS = [7384088509, 533170952]
 ADMIN_PASSWORD = "2026"
-DAILY_PRICE = 25000  # so'm
+DAILY_PRICE = 300.000 # so'm
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode=None)
 telebot.logger.setLevel("ERROR")
@@ -380,74 +380,91 @@ def admin_homeworks(message):
     bot.send_message(message.chat.id, text, parse_mode="Markdown", reply_markup=main_menu(message.from_user.id))
 
 # ==================== ADMIN: TEST QO'SHISH ====================
+def cancel_markup():
+    m = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    m.add("❌ Bekor qilish")
+    return m
+
 @bot.message_handler(func=lambda m: m.text == "📝 Yangi Test qo'shish")
 def admin_add_test_start(message):
     if not is_admin(message.from_user.id):
         return
     user_states[message.from_user.id] = "admin_test_title"
-    bot.send_message(message.chat.id, "📝 Test nomini kiriting:", reply_markup=types.ReplyKeyboardRemove())
+    bot.send_message(message.chat.id, "📝 Test nomini kiriting:", reply_markup=cancel_markup())
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "admin_test_title")
 def admin_test_title(message):
     user_id = message.from_user.id
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(user_id, None); user_data.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     user_data[user_id] = {"test_title": message.text.strip(), "questions": []}
     user_states[user_id] = "admin_test_question"
-    q_num = len(user_data[user_id]["questions"]) + 1
-    bot.send_message(message.chat.id, f"✏️ {q_num}-savolni kiriting:")
+    q_num = 1
+    bot.send_message(message.chat.id, f"✏️ {q_num}-savolni kiriting:", reply_markup=cancel_markup())
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "admin_test_question")
 def admin_test_question(message):
     user_id = message.from_user.id
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(user_id, None); user_data.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     user_data[user_id]["questions"].append({"question": message.text.strip(), "options": [], "correct": 0})
     user_states[user_id] = "admin_test_opt1"
-    bot.send_message(message.chat.id, "1️⃣ 1-variantni kiriting:")
+    bot.send_message(message.chat.id, "1️⃣ 1-variantni kiriting:", reply_markup=cancel_markup())
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) in ["admin_test_opt1", "admin_test_opt2", "admin_test_opt3", "admin_test_opt4"])
 def admin_test_option(message):
     user_id = message.from_user.id
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(user_id, None); user_data.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     state = user_states[user_id]
     opt_num = int(state.replace("admin_test_opt", ""))
     user_data[user_id]["questions"][-1]["options"].append(message.text.strip())
     if opt_num < 4:
         user_states[user_id] = f"admin_test_opt{opt_num + 1}"
-        bot.send_message(message.chat.id, f"{opt_num + 1}️⃣ {opt_num + 1}-variantni kiriting:")
+        bot.send_message(message.chat.id, f"{opt_num + 1}️⃣ {opt_num + 1}-variantni kiriting:", reply_markup=cancel_markup())
     else:
         user_states[user_id] = "admin_test_correct"
-        bot.send_message(message.chat.id, "✅ To'g'ri javob raqamini kiriting (1-4):")
+        bot.send_message(message.chat.id, "✅ To'g'ri javob raqamini kiriting (1-4):", reply_markup=cancel_markup())
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "admin_test_correct")
 def admin_test_correct(message):
     user_id = message.from_user.id
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(user_id, None); user_data.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     try:
         correct = int(message.text)
         if 1 <= correct <= 4:
             user_data[user_id]["questions"][-1]["correct"] = correct - 1
             user_states[user_id] = "admin_test_next"
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             markup.add("➕ Savol qo'shish", "💾 Testni saqlash")
+            markup.add("❌ Bekor qilish")
             bot.send_message(message.chat.id, "Yana savol qo'shasizmi?", reply_markup=markup)
         else:
-            bot.send_message(message.chat.id, "⚠️ 1 dan 4 gacha raqam kiriting!")
+            bot.send_message(message.chat.id, "⚠️ 1 dan 4 gacha raqam kiriting!", reply_markup=cancel_markup())
     except:
-        bot.send_message(message.chat.id, "⚠️ Faqat raqam kiriting!")
+        bot.send_message(message.chat.id, "⚠️ Faqat raqam kiriting!", reply_markup=cancel_markup())
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "admin_test_next")
 def admin_test_next(message):
     user_id = message.from_user.id
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(user_id, None); user_data.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     if message.text == "➕ Savol qo'shish":
         q_num = len(user_data[user_id]["questions"]) + 1
         user_states[user_id] = "admin_test_question"
-        bot.send_message(message.chat.id, f"✏️ {q_num}-savolni kiriting:", reply_markup=types.ReplyKeyboardRemove())
+        bot.send_message(message.chat.id, f"✏️ {q_num}-savolni kiriting:", reply_markup=cancel_markup())
     else:
         db = load_db()
-        new_test = {
-            "title": user_data[user_id]["test_title"],
-            "questions": user_data[user_id]["questions"]
-        }
+        new_test = {"title": user_data[user_id]["test_title"], "questions": user_data[user_id]["questions"]}
         db["tests"].append(new_test)
         save_db(db)
-        user_states.pop(user_id, None)
-        user_data.pop(user_id, None)
+        user_states.pop(user_id, None); user_data.pop(user_id, None)
         q_count = len(new_test["questions"])
         bot.send_message(
             message.chat.id,
@@ -461,11 +478,12 @@ def admin_test_next(message):
 def student_test_start(message):
     db = load_db()
     if not db["tests"]:
-        bot.send_message(message.chat.id, "😔 Hozircha testlar mavjud emas.")
+        bot.send_message(message.chat.id, "😔 Hozircha testlar mavjud emas.", reply_markup=main_menu(message.from_user.id))
         return
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     for t in db["tests"]:
         markup.add(t["title"])
+    markup.add("🏠 Asosiy menyu")
     user_states[message.from_user.id] = "waiting_test_select"
     name = get_name(message.from_user.id)
     bot.send_message(message.chat.id, f"📋 *{name}*, qaysi testni yechmoqchisiz?", parse_mode="Markdown", reply_markup=markup)
@@ -473,6 +491,9 @@ def student_test_start(message):
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "waiting_test_select")
 def student_select_test(message):
     user_id = message.from_user.id
+    if message.text == "🏠 Asosiy menyu":
+        user_states.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     db = load_db()
     test = next((t for t in db["tests"] if t["title"] == message.text), None)
     if not test:
@@ -508,14 +529,20 @@ def show_test_question(user_id):
         finish_test(user_id)
         return
     q = questions[q_idx]
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     for i, opt in enumerate(q["options"]):
         markup.add(f"{i+1}. {opt}")
+    markup.add("🚪 Testdan chiqish")
     bot.send_message(user_id, f"*{q_idx+1}-savol:* {q['question']}", parse_mode="Markdown", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "taking_test")
 def student_answer(message):
     user_id = message.from_user.id
+    if message.text == "🚪 Testdan chiqish":
+        test_states.pop(user_id, None)
+        user_states.pop(user_id, None)
+        bot.send_message(message.chat.id, "❌ Test bekor qilindi. Asosiy menyu:", reply_markup=main_menu(user_id))
+        return
     state = test_states[user_id]
     q_idx = state["current_q"]
     try:
@@ -569,7 +596,7 @@ def show_my_results(message):
         text += f"{i}. 📝 {r['test_title']}: *{r['score']}/{r['total']}* ({percent}%)\n"
         if r.get("date"):
             text += f"   📅 {r['date']}\n"
-    bot.send_message(message.chat.id, text, parse_mode="Markdown")
+    bot.send_message(message.chat.id, text, parse_mode="Markdown", reply_markup=main_menu(message.from_user.id))
 
 # ==================== O'QUVCHI: DAVOMAT ====================
 @bot.message_handler(func=lambda m: m.text == "✅ Keldim")
@@ -585,7 +612,8 @@ def student_attendance(message):
         bot.send_message(
             message.chat.id,
             f"⚠️ *{name}*, siz bugun allaqachon davomat qilgansiz!",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=main_menu(user_id)
         )
     else:
         db["attendance"][uid].append(today)
@@ -593,7 +621,8 @@ def student_attendance(message):
         bot.send_message(
             message.chat.id,
             f"✅ *{name}*, bugungi davomatingiz qabul qilindi!\n📅 Sana: {today}",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=main_menu(user_id)
         )
 
 # ==================== O'QUVCHI: UY VAZIFA ====================
@@ -614,17 +643,22 @@ def student_homework_start(message):
         )
         return
     user_states[user_id] = "waiting_homework"
+    hw_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    hw_markup.add("❌ Bekor qilish")
     bot.send_message(
         message.chat.id,
         f"📚 *{name}*, uy vazifangizni yozing:\n\n"
         f"📋 *Vazifa:* {assigned.get('task', 'Topshiriq')}",
         parse_mode="Markdown",
-        reply_markup=types.ReplyKeyboardRemove()
+        reply_markup=hw_markup
     )
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "waiting_homework")
 def student_homework_submit(message):
     user_id = message.from_user.id
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     db = load_db()
     uid = str(user_id)
     name = get_name(user_id)
@@ -833,7 +867,8 @@ def show_profile(message):
         f"✅ Davomat: {attendance_count} kun\n"
         f"📝 Topshirilgan testlar: {results_count} ta\n"
         f"📖 Tugatilgan unitlar: {vocab_done} ta",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
+        reply_markup=main_menu(message.from_user.id)
     )
 
 # ==================== O'QUVCHI: TO'LOV QILDIM ====================
@@ -856,6 +891,8 @@ def student_payment(message):
     remaining = max(0, total_debt - paid_total)
 
     user_states[user_id] = "waiting_payment_amount"
+    pay_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    pay_markup.add("❌ Bekor qilish")
     bot.send_message(
         message.chat.id,
         f"💳 *{name}*, to'lov ma'lumotlari:\n\n"
@@ -866,12 +903,15 @@ def student_payment(message):
         f"❗ Qoldiq: *{remaining:,}* so'm\n\n"
         f"Qancha pul to'laganingizni kiriting (so'mda):",
         parse_mode="Markdown",
-        reply_markup=types.ReplyKeyboardRemove()
+        reply_markup=pay_markup
     )
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "waiting_payment_amount")
 def payment_amount_received(message):
     user_id = message.from_user.id
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(user_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(user_id)); return
     name = get_name(user_id)
     try:
         amount = int(message.text.replace(" ", "").replace(",", ""))
@@ -1062,7 +1102,7 @@ def admin_assign_homework(message):
         message.chat.id,
         "📋 *Bugungi uy vazifasini kiriting:*\n\n(O'quvchilar shu matnni ko'rib topshiradi)",
         parse_mode="Markdown",
-        reply_markup=types.ReplyKeyboardRemove()
+        reply_markup=cancel_markup()
     )
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "admin_assign_hw")
@@ -1070,6 +1110,9 @@ def admin_assign_hw_save(message):
     admin_id = message.from_user.id
     if not is_admin(admin_id):
         return
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(admin_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(admin_id)); return
     user_states.pop(admin_id, None)
     db = load_db()
     today = str(date.today())
@@ -1097,7 +1140,7 @@ def broadcast_start(message):
         "📣 *Yubormoqchi bo'lgan xabaringizni kiriting:*\n\n"
         "(Barcha o'quvchilarga yuboriladi)",
         parse_mode="Markdown",
-        reply_markup=types.ReplyKeyboardRemove()
+        reply_markup=cancel_markup()
     )
 
 @bot.message_handler(func=lambda m: user_states.get(m.from_user.id) == "waiting_broadcast")
@@ -1105,6 +1148,9 @@ def broadcast_send(message):
     admin_id = message.from_user.id
     if not is_admin(admin_id):
         return
+    if message.text == "❌ Bekor qilish":
+        user_states.pop(admin_id, None)
+        bot.send_message(message.chat.id, "🏠 Asosiy menyu:", reply_markup=main_menu(admin_id)); return
     user_states.pop(admin_id, None)
     db = load_db()
     students = [(uid, u) for uid, u in db["users"].items() if u.get("role") == "student"]
